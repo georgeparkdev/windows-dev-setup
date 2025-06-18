@@ -1,252 +1,187 @@
+#Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-  Enterprise-grade environment bootstrapper for Windows 11 developer workstations.
-
+    Windows Development Environment Setup
 .DESCRIPTION
-  - Elevates to Administrator
-  - Shows hidden files & file extensions
-  - Installs (or skips if present) Powertoys, Git, Windows Terminal, PowerShell, OhMyPosh,
-    .NET SDK, Python, Node.js, Docker with WSL2+Ubuntu, VS Code, and Postman.
-  - Configures OhMyPosh prompt and Windows Terminal font.
-  - Idempotent: will not re-install existing components.
-
-.PARAMETER GitUserName
-  Optional Git global user name to configure
-
-.PARAMETER GitUserEmail
-  Optional Git global user email to configure
-
-.PARAMETER OhMyPoshTheme
-  Optional OhMyPosh theme name (default: paradox)
+    Installs and configures essential development tools for Windows in an idempotent, modular fashion.
+.NOTES
+    Author: George Park
+    Email: georgepark.dev@outlook.com
 #>
 
 param(
-    [string]$GitUserName = "",
-    [string]$GitUserEmail = "",
-    [string]$OhMyPoshTheme = "paradox"
+    [string]$GitUserName = "George Park",
+    [string]$GitUserEmail = "georgepark.dev@outlook.com"
 )
 
-#region -- Self‑Elevation and Globals --
+#------------------------------
+# Global Configuration & Versions
+#------------------------------
+$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+$LogFile = "$env:TEMP\WinDevSetup_$(Get-Date -Format yyyyMMdd_HHmmss).log"
+Start-Transcript -Path $LogFile -Force
 
-function Assert-IsAdministrator {
-    if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
-        Write-Warning "Administrator privileges required. Relaunching with elevation..."
-        Start-Process -FilePath pwsh -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
-        Exit
-    }
+$Applications = @{
+    PowerToys       = 'Microsoft.PowerToys'
+    Git             = 'Git.Git'
+    WindowsTerminal = 'Microsoft.WindowsTerminal'
+    PowerShell      = 'Microsoft.PowerShell'
+    DotNetSDK       = 'Microsoft.DotNet.SDK.9'
+    Python          = 'Python.Python.3.12'
+    NodeJS          = 'OpenJS.NodeJS.LTS'
+    PHP             = 'PHP.PHP.8.4'
+    Composer        = 'Composer.Composer'
+    Docker          = 'Docker.DockerDesktop'
+    VSCode          = 'Microsoft.VisualStudioCode'
 }
 
-# Global list of packages to install via Winget
-$Packages = @{
-    'Microsoft.PowerToys'        = @{ Name = 'PowerToys'; Id = 'Microsoft.PowerToys' }
-    'Git.Git'                    = @{ Name = 'Git'; Id = 'Git.Git' }
-    'Microsoft.WindowsTerminal'  = @{ Name = 'Windows Terminal'; Id = 'Microsoft.WindowsTerminal' }
-    'Microsoft.PowerShell'       = @{ Name = 'PowerShell (7+)'; Id = 'Microsoft.PowerShell' }
-    'JanDeDobbeleer.OhMyPosh'    = @{ Name = 'OhMyPosh'; Id = 'JanDeDobbeleer.OhMyPosh' }
-    'Microsoft.DotNet.SDK.9'     = @{ Name = '.NET 9 SDK'; Id = 'Microsoft.DotNet.SDK.9' }
-    'Python.Python.3'            = @{ Name = 'Python 3'; Id = 'Python.Python.3' }
-    'OpenJS.NodeJS.LTS'          = @{ Name = 'Node.js LTS'; Id = 'OpenJS.NodeJS.LTS' }
-    'Docker.DockerDesktop'       = @{ Name = 'Docker Desktop'; Id = 'Docker.DockerDesktop' }
-    'Microsoft.VisualStudioCode' = @{ Name = 'Visual Studio Code'; Id = 'Microsoft.VisualStudioCode' }
-    'Postman.Postman'            = @{ Name = 'Postman'; Id = 'Postman.Postman' }
+#------------------------------
+# Helper Functions
+#------------------------------
+function Write-Section {
+    param([string]$Title)
+    Write-Host "`n$Title" -ForegroundColor Cyan
+    Write-Host ('-' * $Title.Length) -ForegroundColor Cyan
 }
 
-#endregion
-
-#region -- Utility Functions --
-
-function Write-Log {
-    param([string]$Message, [ConsoleColor]$Color = 'Gray')
-    $timestamp = Get-Date -Format "HH:mm:ss"
-    Write-Host "[$timestamp] $Message" -ForegroundColor $Color
-}
-
-function Install-PackageIfMissing {
+function Invoke-WithRetry {
     param(
-        [string]$Id,
-        [string]$FriendlyName,
-        [int]$MaxRetries = 3
+        [ScriptBlock]$Action,
+        [int]$MaxAttempts = 3
     )
-    
-    # Check if already installed
-    $isInstalled = $false
-    try {
-        $result = winget list --id $Id 2>$null
-        if ($LASTEXITCODE -eq 0 -and $result) {
-            $isInstalled = $true
+    for ($i = 1; $i -le $MaxAttempts; $i++) {
+        try { return & $Action } catch {
+            if ($i -eq $MaxAttempts) { throw }
+            Start-Sleep -Seconds (2 * $i)
         }
     }
-    catch {
-        Write-Log "Warning: Could not check if $FriendlyName is installed. Proceeding with installation attempt." Yellow
-    }
-    
-    if ($isInstalled) {
-        Write-Log "✔️ Skipping $FriendlyName (already installed)." Green
+}
+
+function Install-WingetApp {
+    param([string]$Id, [string]$Name)
+    if (winget list --id $Id --exact 2>$null) {
+        Write-Host "[SKIP] $Name already installed" -ForegroundColor Yellow
         return $true
     }
-    
-    # Attempt installation with retry logic
-    for ($attempt = 1; $attempt -le $MaxRetries; $attempt++) {
-        Write-Log "⏳ Installing $FriendlyName (attempt $attempt/$MaxRetries)..." Yellow
-        
-        try {
-            winget install --id $Id --exact --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
-            
-            if ($LASTEXITCODE -eq 0) {
-                Write-Log "✅ $FriendlyName installed successfully." Green
-                return $true
-            }
-            elseif ($LASTEXITCODE -eq -1978335189) {
-                Write-Log "⚠️ ${FriendlyName}: No applicable update found (already latest version)." Green
-                return $true
-            }
-            else {
-                Write-Log "⚠️ Attempt $attempt failed for $FriendlyName. Exit code: $LASTEXITCODE" Yellow
-                if ($attempt -lt $MaxRetries) {
-                    Write-Log "⏳ Waiting 5 seconds before retry..." Gray
-                    Start-Sleep -Seconds 5
-                }
-            }
-        }
-        catch {
-            Write-Log "⚠️ Exception during $FriendlyName installation: $($_.Exception.Message)" Yellow
-            if ($attempt -lt $MaxRetries) {
-                Start-Sleep -Seconds 5
-            }
-        }
+    Write-Host "Installing $Name..." -NoNewline
+    $output = Invoke-WithRetry { winget install $Id --exact --silent --accept-source-agreements --accept-package-agreements } 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host " OK" -ForegroundColor Green
+        return $true
     }
-    
-    Write-Log "❌ Failed to install $FriendlyName after $MaxRetries attempts." Red
-    return $false
-}
-
-function Test-WSLEnabled {
-    try {
-        $wslFeature = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -ErrorAction SilentlyContinue
-        return ($wslFeature -and $wslFeature.State -eq "Enabled")
-    }
-    catch {
+    else {
+        Write-Host " FAIL (Exit code: $LASTEXITCODE)" -ForegroundColor Red
+        Write-Host "Details:" -ForegroundColor DarkYellow
+        $output | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
         return $false
     }
 }
 
-function Install-WSLWithUbuntu {
-    Write-Log "🐧 Configuring WSL2 with Ubuntu..." Cyan
-    
-    # Check if WSL is already enabled
-    if (Test-WSLEnabled) {
-        Write-Log "✔️ WSL is already enabled." Green
+function Update-Path {
+    $machine = [Environment]::GetEnvironmentVariable('Path', 'Machine')
+    $user = [Environment]::GetEnvironmentVariable('Path', 'User')
+    [Environment]::SetEnvironmentVariable('Path', "$machine;$user", 'User')
+    Write-Host 'User PATH persisted' -ForegroundColor Yellow
+}
+
+function Install-PythonPackages {
+    Write-Host '-> Installing Python packages...' -NoNewline
+    & python -m pip install --upgrade pip
+    & pip install virtualenv pylint
+    Write-Host ' Done' -ForegroundColor Green
+}
+
+function Install-NodePackages {
+    Write-Host '-> Installing Node.js packages...' -NoNewline
+    npm install -g typescript yarn eslint
+    Write-Host ' Done' -ForegroundColor Green
+}
+
+function Install-Php {
+    Write-Host '-> Installing PHP...' -ForegroundColor Cyan
+
+    # Idempotent winget install of PHP 8.4
+    if (Install-WingetApp -Id $Applications.PHP -Name 'PHP 8.4') {
+        Write-Host ' PHP 8.4 is installed or already present.' -ForegroundColor Green
     }
     else {
-        Write-Log "⏳ Enabling WSL feature..." Yellow
-        try {
-            Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -All -NoRestart
-            Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -All -NoRestart
-            Write-Log "✅ WSL features enabled (restart may be required)." Green
-        }
-        catch {
-            Write-Log "⚠️ Could not enable WSL features. Trying alternative method..." Yellow
-            Install-PackageIfMissing -Id 'Microsoft.WSL' -FriendlyName 'WSL2'
-        }
+        Write-Host ' PHP installation failed.' -ForegroundColor Red
+        return
     }
-    
-    # Install Ubuntu distribution
-    Write-Log "⏳ Installing Ubuntu distribution..." Yellow
-    try {
-        $wslOutput = wsl --install -d Ubuntu --no-launch 2>&1
-        if ($LASTEXITCODE -eq 0) {
-            Write-Log "✅ Ubuntu distribution installed successfully." Green
-        }
-        else {
-            Write-Log "⚠️ Ubuntu installation may have issues. Output: $wslOutput" Yellow
-        }
+
+    # Persist PATH so php.exe becomes available in this and future sessions
+    Write-Host '-> Persisting PATH updates...' -ForegroundColor Cyan
+    Update-Path
+
+    # Immediate validation (reload env for current session)
+    $env:Path = [Environment]::GetEnvironmentVariable('Path', 'User')
+    Write-Host '-> Verifying PHP version...' -ForegroundColor Cyan
+    php -v | Select-String '^PHP' | ForEach-Object {
+        Write-Host "  $_" -ForegroundColor Green
     }
-    catch {
-        Write-Log "⚠️ Could not install Ubuntu via wsl command. You may need to install it manually from Microsoft Store." Yellow
-    }
+
+    Write-Host 'PHP provisioning complete.' -ForegroundColor Green
 }
 
-#endregion
 
-#region -- Begin Provisioning --
-
-Assert-IsAdministrator
-Write-Log "`n=== Starting Windows 11 Developer Bootstrap: $(Get-Date -Format u) ===`n" Cyan
-
-# 1. PowerToys
-Install-PackageIfMissing -Id $Packages['Microsoft.PowerToys'].Id -FriendlyName $Packages['Microsoft.PowerToys'].Name
-
-# 2 & 3. Explorer settings: show hidden files & known file extensions
-Write-Log "`nConfiguring Explorer settings..." Cyan
-Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name Hidden      -Value 1
-Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name HideFileExt -Value 0
-Write-Log "✅ Explorer configured to show hidden files and file extensions." Green
-
-# 4. Git + global config
-Install-PackageIfMissing -Id $Packages['Git.Git'].Id -FriendlyName $Packages['Git.Git'].Name
-if (Get-Command git -ErrorAction SilentlyContinue) {
-    if ($GitUserName) {
-        git config --global user.name  $GitUserName
-        Write-Log "✅ Git global user.name configured to '$GitUserName'." Green
-    }
-    if ($GitUserEmail) {
-        git config --global user.email $GitUserEmail
-        Write-Log "✅ Git global user.email configured to '$GitUserEmail'." Green
-    }
-    if (-not $GitUserName -and -not $GitUserEmail) {
-        Write-Log "⚠️ Git global user.name/user.email not configured: please provide -GitUserName and/or -GitUserEmail parameters." Yellow
+function Ensure-WSL2 {
+    if (-not (wsl.exe --status 2>$null)) {
+        Write-Host '-> Enabling WSL2 feature...' -NoNewline
+        Enable-WindowsOptionalFeature -Online -FeatureName 'Microsoft-Windows-Subsystem-Linux' -NoRestart | Out-Null
+        Enable-WindowsOptionalFeature -Online -FeatureName 'VirtualMachinePlatform' -NoRestart | Out-Null
+        Write-Host ' Done' -ForegroundColor Green
     }
 }
 
-# 5–7. Terminal, PowerShell & OhMyPosh
-foreach ($key in 'Microsoft.WindowsTerminal', 'Microsoft.PowerShell', 'JanDeDobbeleer.OhMyPosh') {
-    Install-PackageIfMissing -Id $Packages[$key].Id -FriendlyName $Packages[$key].Name
+function Install-DockerDesktop {
+    Ensure-WSL2
+    Install-WingetApp -Id $Applications.Docker -Name 'Docker Desktop'
 }
 
-# OhMyPosh theme activation
-Write-Log "⚙️ Configuring OhMyPosh theme..." Cyan
-$ThemePath = "$env:LOCALAPPDATA\Programs\oh-my-posh\themes\$OhMyPoshTheme.omp.json"
-
-# Check if theme exists, fallback to default if not
-if (-not (Test-Path $ThemePath)) {
-    Write-Log "⚠️ Theme '$OhMyPoshTheme' not found, using 'paradox' as fallback." Yellow
-    $ThemePath = "$env:LOCALAPPDATA\Programs\oh-my-posh\themes\paradox.omp.json"
+function Configure-VSCodeGitEditor {
+    Write-Host '-> Setting VS Code as Git editor...' -NoNewline
+    git config --global core.editor 'code --wait'
+    Write-Host ' Done' -ForegroundColor Green
 }
 
-if (-Not (Test-Path $PROFILE)) { 
-    New-Item -ItemType File -Path $PROFILE -Force | Out-Null 
-    Write-Log "📝 Created PowerShell profile." Gray
-}
+#------------------------------
+# Main Execution
+#------------------------------
+Write-Host '=== Windows Dev Setup ===' -ForegroundColor Cyan
 
-if (-not (Select-String -Path $PROFILE -Pattern 'oh-my-posh init' -Quiet)) {
-    Add-Content $PROFILE @"
-`$env:OMP_THEME = '$ThemePath'
-oh-my-posh init pwsh --config `"$env:OMP_THEME`" | Invoke-Expression
-"@
-    Write-Log "✅ OhMyPosh prompt configured in your PowerShell profile." Green
-}
-else {
-    Write-Log "✔️ OhMyPosh already configured in PowerShell profile." Green
-}
+Write-Section 'Core Utilities'
+Install-WingetApp -Id $Applications.PowerToys -Name 'PowerToys'
 
-# 8–10. .NET, Python & Node.js
-foreach ($key in 'Microsoft.DotNet.SDK.9', 'Python.Python.3', 'OpenJS.NodeJS.LTS') {
-    Install-PackageIfMissing -Id $Packages[$key].Id -FriendlyName $Packages[$key].Name
-}
+Write-Section 'Windows Explorer'
+Set-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name Hidden -Value 1
+Set-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name HideFileExt -Value 0
+Write-Host 'Explorer configured' -ForegroundColor Green
 
-# 11. Docker with WSL2 (Ubuntu)
-Install-WSLWithUbuntu
-Install-PackageIfMissing -Id 'Docker.DockerDesktop'    -FriendlyName 'Docker Desktop'
+Write-Section 'Git'
+Install-WingetApp -Id $Applications.Git -Name 'Git'
+if ($?) { git config --global user.name  $GitUserName; git config --global user.email $GitUserEmail; Write-Host 'Git user configured' -ForegroundColor Green }
 
-# 12. VS Code + Git editor
-Install-PackageIfMissing -Id 'Microsoft.VisualStudioCode' -FriendlyName 'Visual Studio Code'
-if (Get-Command code -ErrorAction SilentlyContinue) {
-    git config --global core.editor "code --wait"
-    Write-Log "✅ VS Code set as Git editor." Green
-}
+Write-Section 'Terminal & Shell'
+Install-WingetApp -Id $Applications.WindowsTerminal -Name 'Windows Terminal'
+Install-WingetApp -Id $Applications.PowerShell -Name 'PowerShell 7'
 
-# 13. Postman
-Install-PackageIfMissing -Id 'Postman.Postman' -FriendlyName 'Postman'
+Write-Section 'SDKs & Runtimes'
+Install-WingetApp -Id $Applications.DotNetSDK -Name '.NET SDK 9'
+Install-WingetApp -Id $Applications.Python  -Name 'Python 3.12'
+if ($?) { Install-PythonPackages }
+Install-WingetApp -Id $Applications.NodeJS  -Name 'Node.js LTS'
+if ($?) { Install-NodePackages }
 
-Write-Log "`n=== Bootstrap Complete! Enjoy your future‑proof dev environment. ===`n" Cyan
-#endregion
+Write-Section 'PHP'
+Install-Php
+
+Write-Section 'Docker Desktop'
+Install-DockerDesktop
+
+Write-Section 'Visual Studio Code'
+Install-WingetApp -Id $Applications.VSCode -Name 'Visual Studio Code'
+Configure-VSCodeGitEditor
+
+Write-Host "`nSetup complete. Log: $LogFile" -ForegroundColor Green
+Stop-Transcript
