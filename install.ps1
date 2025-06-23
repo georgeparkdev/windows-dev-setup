@@ -231,7 +231,7 @@ Write-Section 'Ollama'
 Install-WingetApp -Id $Applications.Ollama -Name 'Ollama'
 
 if ($InstallDeepSeekCoderV2) {
-    Pull-DeepSeekCoderV2 -ModelId 'deepseek-coder-v2:16' -DisplayName 'DeepSeek-Coder-V2 (16B parameters)'
+    Pull-DeepSeekCoderV2 -ModelId 'deepseek-coder-v2:16b' -DisplayName 'DeepSeek-Coder-V2 (16B parameters)'
 }
 
 Configure-VSCodeGitEditor
