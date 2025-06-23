@@ -41,12 +41,12 @@ Set-ExecutionPolicy RemoteSigned -Scope Process -Force
 | -------------------- | -------- | ------------------------------ | ------------------------------------------------ |
 | `GitUserName`        | `string` | `"George Park"`                | Sets the global Git user name                    |
 | `GitUserEmail`       | `string` | `"georgepark.dev@outlook.com"` | Sets the global Git email                        |
-| `InstallOllamaModel` | `switch` | `$false`                       | Pulls DeepSeek-Coder-V2 model (133GB) via Ollama |
+| `InstallDeepSeekCoderV2` | `switch` | `$false`                       | Pulls DeepSeek-Coder-V2 model via Ollama |
 
 ### Example with all parameters:
 
 ```powershell
-.\WinDevSetup.ps1 -GitUserName "Your Name" -GitUserEmail "you@example.com" -InstallOllamaModel
+.\WinDevSetup.ps1 -GitUserName "Your Name" -GitUserEmail "you@example.com" -InstallDeepSeekCoderV2
 ```
 
 ---
@@ -62,19 +62,17 @@ Set-ExecutionPolicy RemoteSigned -Scope Process -Force
 
 ## 🧠 Optional: Ollama Model Setup
 
-To install **DeepSeek-Coder-V2 (236B)** via [Ollama](https://ollama.com):
+To install **DeepSeek-Coder-V2 (16B)** via [Ollama](https://ollama.com):
 
 ```powershell
-.\WinDevSetup.ps1 -InstallOllamaModel
+.\WinDevSetup.ps1 -InstallDeepSeekCoderV2
 ```
 
 Combined with Git config:
 
 ```powershell
-.\WinDevSetup.ps1 -GitUserName "Your Name" -GitUserEmail "you@example.com" -InstallOllamaModel
+.\WinDevSetup.ps1 -GitUserName "Your Name" -GitUserEmail "you@example.com" -InstallDeepSeekCoderV2
 ```
-
-*⚠️ Model size: \~133GB. Ensure adequate disk space.*
 
 ---
 

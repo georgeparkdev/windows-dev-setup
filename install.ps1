@@ -12,7 +12,7 @@
 param(
     [string]$GitUserName = "George Park",
     [string]$GitUserEmail = "georgepark.dev@outlook.com",
-    [switch]$InstallOllamaModel = $false
+    [switch]$InstallDeepSeekCoderV2 = $false
 )
 
 #------------------------------
@@ -145,7 +145,7 @@ function Configure-VSCodeGitEditor {
     Write-Host ' Done' -ForegroundColor Green
 }
 
-function Pull-OllamaModel {
+function Pull-DeepSeekCoderV2 {
     param(
         [string]$ModelId,
         [string]$DisplayName
@@ -230,8 +230,8 @@ Install-WingetApp -Id $Applications.VSCode -Name 'Visual Studio Code'
 Write-Section 'Ollama'
 Install-WingetApp -Id $Applications.Ollama -Name 'Ollama'
 
-if ($InstallOllamaModel) {
-    Pull-OllamaModel -ModelId 'deepseek-coder-v2:236b' -DisplayName 'DeepSeek-Coder-V2 (236B parameters)'
+if ($InstallDeepSeekCoderV2) {
+    Pull-DeepSeekCoderV2 -ModelId 'deepseek-coder-v2:16' -DisplayName 'DeepSeek-Coder-V2 (16B parameters)'
 }
 
 Configure-VSCodeGitEditor
