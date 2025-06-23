@@ -33,6 +33,7 @@ $Applications = @{
     PHP             = 'PHP.PHP.8.4'
     Docker          = 'Docker.DockerDesktop'
     VSCode          = 'Microsoft.VisualStudioCode'
+    Ollama          = 'Ollama.Ollama'
 }
 
 #------------------------------
@@ -123,7 +124,6 @@ function Install-Php {
     Write-Host 'PHP provisioning complete.' -ForegroundColor Green
 }
 
-
 function Ensure-WSL2 {
     if (-not (wsl.exe --status 2>$null)) {
         Write-Host '-> Enabling WSL2 feature...' -NoNewline
@@ -180,6 +180,10 @@ Install-DockerDesktop
 
 Write-Section 'Visual Studio Code'
 Install-WingetApp -Id $Applications.VSCode -Name 'Visual Studio Code'
+
+Write-Section 'Ollama'
+Install-WingetApp -Id $Applications.Ollama -Name 'Ollama'
+
 Configure-VSCodeGitEditor
 
 Write-Host "`nSetup complete. Log: $LogFile" -ForegroundColor Green

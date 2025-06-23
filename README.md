@@ -16,6 +16,7 @@ This script was made for personal use to quickly set up a Windows dev environmen
 - PHP 8.4
 - Docker Desktop (with WSL2 setup)
 - Visual Studio Code (set as Git editor)
+- Ollama
 
 ---
 
