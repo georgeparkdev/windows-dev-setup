@@ -151,21 +151,41 @@ function Pull-OllamaModel {
         [string]$DisplayName
     )
     Write-Section "Provisioning Ollama Model: $DisplayName"
-    # Check if model is already present
-    if (ollama list 2>$null | Select-String -Pattern "^$ModelId(\s|$)") {
-        Write-Host "[SKIP] $DisplayName already pulled" -ForegroundColor Yellow
-        return $true
+    
+    # Verify ollama command is available
+    try {
+        $null = Get-Command ollama -ErrorAction Stop
     }
-    Write-Host "Pulling $DisplayName ($ModelId)..." -NoNewline
-    $output = & ollama pull $ModelId 2>&1
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host " OK" -ForegroundColor Green
-        return $true
+    catch {
+        Write-Host "ERROR: ollama command not found. Please restart PowerShell and try again." -ForegroundColor Red
+        return $false
+    }    # Check if model is already present
+    try {
+        $existingModels = & ollama list *>$null
+        if ($existingModels | Select-String -Pattern "^$ModelId(\s|$)") {
+            Write-Host "[SKIP] $DisplayName already pulled" -ForegroundColor Yellow
+            return $true
+        }
     }
-    else {
-        Write-Host " FAIL (Exit code: $LASTEXITCODE)" -ForegroundColor Red
-        Write-Host "Details:" -ForegroundColor DarkYellow
-        $output | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+    catch {
+        # If ollama list fails, continue with pull attempt
+    }    Write-Host "Pulling $DisplayName ($ModelId)..."
+    
+    try {
+        # Let ollama show progress directly without capturing output
+        & ollama pull $ModelId
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "SUCCESS: $DisplayName pulled successfully" -ForegroundColor Green
+            return $true
+        }
+        else {
+            Write-Host "ERROR: Failed to pull $DisplayName (Exit code: $LASTEXITCODE)" -ForegroundColor Red
+            return $false
+        }
+    }
+    catch {
+        Write-Host "ERROR: Error pulling $DisplayName" -ForegroundColor Red
+        Write-Host "Details: $($_.Exception.Message)" -ForegroundColor DarkYellow
         return $false
     }
 }
