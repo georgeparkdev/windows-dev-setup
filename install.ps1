@@ -11,7 +11,8 @@
 
 param(
     [string]$GitUserName = "George Park",
-    [string]$GitUserEmail = "georgepark.dev@outlook.com"
+    [string]$GitUserEmail = "georgepark.dev@outlook.com",
+    [switch]$InstallOllamaModel = $false
 )
 
 #------------------------------
@@ -33,6 +34,7 @@ $Applications = @{
     PHP             = 'PHP.PHP.8.4'
     Docker          = 'Docker.DockerDesktop'
     VSCode          = 'Microsoft.VisualStudioCode'
+    Ollama          = 'Ollama.Ollama'
 }
 
 #------------------------------
@@ -144,6 +146,31 @@ function Configure-VSCodeGitEditor {
     Write-Host ' Done' -ForegroundColor Green
 }
 
+function Pull-OllamaModel {
+    param(
+        [string]$ModelId,
+        [string]$DisplayName
+    )
+    Write-Section "Provisioning Ollama Model: $DisplayName"
+    # Check if model is already present
+    if (ollama list 2>$null | Select-String -Pattern "^$ModelId(\s|$)") {
+        Write-Host "[SKIP] $DisplayName already pulled" -ForegroundColor Yellow
+        return $true
+    }
+    Write-Host "Pulling $DisplayName ($ModelId)..." -NoNewline
+    $output = & ollama pull $ModelId 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host " OK" -ForegroundColor Green
+        return $true
+    }
+    else {
+        Write-Host " FAIL (Exit code: $LASTEXITCODE)" -ForegroundColor Red
+        Write-Host "Details:" -ForegroundColor DarkYellow
+        $output | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+        return $false
+    }
+}
+
 #------------------------------
 # Main Execution
 #------------------------------
@@ -180,6 +207,14 @@ Install-DockerDesktop
 
 Write-Section 'Visual Studio Code'
 Install-WingetApp -Id $Applications.VSCode -Name 'Visual Studio Code'
+
+Write-Section 'Ollama'
+Install-WingetApp -Id $Applications.Ollama -Name 'Ollama'
+
+if ($InstallOllamaModel) {
+    Pull-OllamaModel -ModelId 'deepseek-coder-v2:236b' -DisplayName 'DeepSeek-Coder-V2 (236B parameters)'
+}
+
 Configure-VSCodeGitEditor
 
 Write-Host "`nSetup complete. Log: $LogFile" -ForegroundColor Green
