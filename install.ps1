@@ -125,7 +125,6 @@ function Install-Php {
     Write-Host 'PHP provisioning complete.' -ForegroundColor Green
 }
 
-
 function Ensure-WSL2 {
     if (-not (wsl.exe --status 2>$null)) {
         Write-Host '-> Enabling WSL2 feature...' -NoNewline
