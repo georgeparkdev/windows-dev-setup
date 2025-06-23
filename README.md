@@ -13,7 +13,7 @@ This script was made for personal use to quickly set up a Windows dev environmen
 - .NET SDK 9
 - Python 3.12 (+ pip packages)
 - Node.js LTS (+ global packages)
-- PHP 8.4 + Composer
+- PHP 8.4
 - Docker Desktop (with WSL2 setup)
 - Visual Studio Code (set as Git editor)
 

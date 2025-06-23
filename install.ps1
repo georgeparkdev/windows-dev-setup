@@ -31,7 +31,6 @@ $Applications = @{
     Python          = 'Python.Python.3.12'
     NodeJS          = 'OpenJS.NodeJS.LTS'
     PHP             = 'PHP.PHP.8.4'
-    Composer        = 'Composer.Composer'
     Docker          = 'Docker.DockerDesktop'
     VSCode          = 'Microsoft.VisualStudioCode'
 }
