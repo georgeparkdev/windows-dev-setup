@@ -1,47 +1,86 @@
-# Windows Dev Setup
+# ⚙️ Windows Dev Setup
 
-This script was made for personal use to quickly set up a Windows dev environment. It’s clean, fast, and idempotent—great for fresh installs or resetting tools. Others are welcome to use or modify it if it fits their workflow.
-
----
-
-## What it installs
-
-- Git + config
-- PowerToys
-- Windows Terminal
-- PowerShell 7
-- .NET SDK 9
-- Python 3.12 (+ pip packages)
-- Node.js LTS (+ global packages)
-- PHP 8.4
-- Docker Desktop (with WSL2 setup)
-- Visual Studio Code (set as Git editor)
+A fast, idempotent PowerShell script to provision a full-featured Windows development environment. Ideal for fresh installs or reinitializing tooling without manual overhead.
 
 ---
 
-## How to run it
+## 📦 What’s Installed
 
-1. Open PowerShell **as Administrator**
-2. Run:
-
-   ```powershell
-   Set-ExecutionPolicy RemoteSigned -Scope Process -Force
-   .\WinDevSetup.ps1
-   ```
-
-   You can also pass your Git name and email:
-
-   ```powershell
-   .\WinDevSetup.ps1 -GitUserName "Your Name" -GitUserEmail "you@example.com"
-   ```
+| Tool / Stack            | Description                                    |
+|-------------------------|------------------------------------------------|
+| Git                    | Installed via winget, global username/email set |
+| PowerToys              | Windows utilities for enhanced UX              |
+| Windows Terminal       | Modern terminal for multi-shell usage          |
+| PowerShell 7           | Latest cross-platform shell                    |
+| .NET SDK 9             | Microsoft’s latest software development kit    |
+| Python 3.12            | Includes `pip`, `virtualenv`, `pylint`         |
+| Node.js LTS            | Includes `typescript`, `eslint`, `yarn`       |
+| PHP 8.4                | CLI + path persistence, version check          |
+| Docker Desktop         | Configures WSL2 support if needed              |
+| Visual Studio Code     | Configured as default Git editor               |
+| Ollama                 | Pulls Ollama if enabled                        |
 
 ---
 
-## Notes
+## 🚀 Usage
 
-- Needs Windows with `winget` installed
-- Logs saved to your temp folder
-- Safe to rerun—skips already-installed tools
-- Automatically updates your PATH and configures Git
+### 1. Launch PowerShell as **Administrator**
+
+### 2. Run the script
+
+```powershell
+Set-ExecutionPolicy RemoteSigned -Scope Process -Force
+.\install.ps1
+````
+
+---
+
+## 🧾 Parameters
+
+| Parameter            | Type     | Default                        | Description                                      |
+| -------------------- | -------- | ------------------------------ | ------------------------------------------------ |
+| `GitUserName`        | `string` | `"George Park"`                | Sets the global Git user name                    |
+| `GitUserEmail`       | `string` | `"georgepark.dev@outlook.com"` | Sets the global Git email                        |
+| `InstallOllamaModel` | `switch` | `$false`                       | Pulls DeepSeek-Coder-V2 model (133GB) via Ollama |
+
+### Example with all parameters:
+
+```powershell
+.\WinDevSetup.ps1 -GitUserName "Your Name" -GitUserEmail "you@example.com" -InstallOllamaModel
+```
+
+---
+
+## 🧠 Notes
+
+* ✅ Safe to rerun — skips already-installed packages.
+* ✅ Auto-configures `$PATH`, Git editor, and shell defaults.
+* 🪵 Logs stored at: `%TEMP%\WinDevSetup_<timestamp>.log`
+* 💡 Requires Windows with [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/) installed.
+
+---
+
+## 🧠 Optional: Ollama Model Setup
+
+To install **DeepSeek-Coder-V2 (236B)** via [Ollama](https://ollama.com):
+
+```powershell
+.\WinDevSetup.ps1 -InstallOllamaModel
+```
+
+Combined with Git config:
+
+```powershell
+.\WinDevSetup.ps1 -GitUserName "Your Name" -GitUserEmail "you@example.com" -InstallOllamaModel
+```
+
+*⚠️ Model size: \~133GB. Ensure adequate disk space.*
+
+---
+
+## 📬 Author
+
+**George Park**
+[georgepark.dev@outlook.com](mailto:georgepark.dev@outlook.com)
 
 ---
