@@ -1,9 +1,9 @@
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-    Windows Development Environment Setup
+    Windows Development Environment Setup 
 .DESCRIPTION
-    Installs and configures essential development tools for Windows in an idempotent, modular fashion.
+    Installs essential development tools for Windows.
 .NOTES
     Author: George Park
     Email: georgepark.dev@outlook.com
@@ -11,230 +11,79 @@
 
 param(
     [string]$GitUserName = "George Park",
-    [string]$GitUserEmail = "georgepark.dev@outlook.com",
-    [switch]$InstallDeepSeekCoderV2 = $false
+    [string]$GitUserEmail = "georgepark.dev@outlook.com"
 )
 
-#------------------------------
-# Global Configuration & Versions
-#------------------------------
-$ErrorActionPreference = 'Stop'
-$ProgressPreference = 'SilentlyContinue'
-$LogFile = "$env:TEMP\WinDevSetup_$(Get-Date -Format yyyyMMdd_HHmmss).log"
-Start-Transcript -Path $LogFile -Force
+# PowerToys
+Write-Host "PowerToys"
+Write-Host "----------------------------------------"
+winget install Microsoft.PowerToys --exact --no-upgrade --silent
+Write-Host "DONE: PowerToys." -ForegroundColor Green
 
-$Applications = @{
-    PowerToys       = 'Microsoft.PowerToys'
-    Git             = 'Git.Git'
-    WindowsTerminal = 'Microsoft.WindowsTerminal'
-    PowerShell      = 'Microsoft.PowerShell'
-    DotNetSDK       = 'Microsoft.DotNet.SDK.9'
-    Python          = 'Python.Python.3.12'
-    NodeJS          = 'OpenJS.NodeJS.LTS'
-    PHP             = 'PHP.PHP.8.4'
-    Docker          = 'Docker.DockerDesktop'
-    VSCode          = 'Microsoft.VisualStudioCode'
-    Ollama          = 'Ollama.Ollama'
-}
+# Registry Update
+Write-Host "Registry Update"
+Write-Host "----------------------------------------"
+## Show hidden files
+# Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name Hidden -Value 1
+## Show file extensions for known file types
+Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name HideFileExt -Value 0
+Write-Host "DONE: Registry updated." -ForegroundColor Green
 
-#------------------------------
-# Helper Functions
-#------------------------------
-function Write-Section {
-    param([string]$Title)
-    Write-Host "`n$Title" -ForegroundColor Cyan
-    Write-Host ('-' * $Title.Length) -ForegroundColor Cyan
-}
+# Git
+Write-Host "Git"
+Write-Host "----------------------------------------"
+winget install Git.Git --exact --no-upgrade --silent
+git config --global user.name $GitUserName
+git config --global user.email $GitUserEmail
+Write-Host "DONE: Git has been installed and user has been configured." -ForegroundColor Green
 
-function Invoke-WithRetry {
-    param(
-        [ScriptBlock]$Action,
-        [int]$MaxAttempts = 3
-    )
-    for ($i = 1; $i -le $MaxAttempts; $i++) {
-        try { return & $Action } catch {
-            if ($i -eq $MaxAttempts) { throw }
-            Start-Sleep -Seconds (2 * $i)
-        }
-    }
-}
+# Windows Terminal
+Write-Host "Windows Terminal"
+Write-Host "----------------------------------------"
+winget install Microsoft.WindowsTerminal --exact --no-upgrade --silent
+Write-Host "DONE: Windows Terminal." -ForegroundColor Green
 
-function Install-WingetApp {
-    param([string]$Id, [string]$Name)
-    if (winget list --id $Id --exact 2>$null) {
-        Write-Host "[SKIP] $Name already installed" -ForegroundColor Yellow
-        return $true
-    }
-    Write-Host "Installing $Name..." -NoNewline
-    $output = Invoke-WithRetry { winget install $Id --exact --silent --accept-source-agreements --accept-package-agreements } 2>&1
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host " OK" -ForegroundColor Green
-        return $true
-    }
-    else {
-        Write-Host " FAIL (Exit code: $LASTEXITCODE)" -ForegroundColor Red
-        Write-Host "Details:" -ForegroundColor DarkYellow
-        $output | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
-        return $false
-    }
-}
+# PowerShell 7
+Write-Host "PowerShell 7"
+Write-Host "----------------------------------------"
+winget install Microsoft.PowerShell --exact --no-upgrade --silent
+Write-Host "DONE: PowerShell 7." -ForegroundColor Green
 
-function Update-Path {
-    $machine = [Environment]::GetEnvironmentVariable('Path', 'Machine')
-    $user = [Environment]::GetEnvironmentVariable('Path', 'User')
-    [Environment]::SetEnvironmentVariable('Path', "$machine;$user", 'User')
-    Write-Host 'User PATH persisted' -ForegroundColor Yellow
-}
+# .NET SDK 9
+Write-Host ".NET SDK 9"
+Write-Host "----------------------------------------"
+winget install Microsoft.DotNet.SDK.9 --exact --no-upgrade --silent
+Write-Host "DONE: .NET SDK 9." -ForegroundColor Green
 
-function Install-PythonPackages {
-    Write-Host '-> Installing Python packages...' -NoNewline
-    & python -m pip install --upgrade pip
-    & pip install virtualenv pylint
-    Write-Host ' Done' -ForegroundColor Green
-}
+# Python 3.12
+Write-Host "Python 3.12"
+Write-Host "----------------------------------------"
+winget install Python.Python.3.12 --exact --no-upgrade --silent
+Write-Host "DONE: Python 3.12." -ForegroundColor Green
 
-function Install-NodePackages {
-    Write-Host '-> Installing Node.js packages...' -NoNewline
-    npm install -g typescript yarn eslint
-    Write-Host ' Done' -ForegroundColor Green
-}
+# Node.js LTS
+Write-Host "Node.js LTS"
+Write-Host "----------------------------------------"
+winget install OpenJS.NodeJS.LTS --exact --no-upgrade --silent
+Write-Host "DONE: Node.js LTS." -ForegroundColor Green
 
-function Install-Php {
-    Write-Host '-> Installing PHP...' -ForegroundColor Cyan
+# PHP 8.4
+Write-Host "PHP 8.4"
+Write-Host "----------------------------------------"
+winget install PHP.PHP.8.4 --exact --no-upgrade --silent
+Write-Host "DONE: PHP 8.4." -ForegroundColor Green
 
-    # Idempotent winget install of PHP 8.4
-    if (Install-WingetApp -Id $Applications.PHP -Name 'PHP 8.4') {
-        Write-Host ' PHP 8.4 is installed or already present.' -ForegroundColor Green
-    }
-    else {
-        Write-Host ' PHP installation failed.' -ForegroundColor Red
-        return
-    }
+# Docker Desktop
+Write-Host "Docker Desktop"
+Write-Host "----------------------------------------"
+winget install Docker.DockerDesktop --exact --no-upgrade --silent
+Write-Host "DONE: Docker Desktop." -ForegroundColor Green
 
-    # Persist PATH so php.exe becomes available in this and future sessions
-    Write-Host '-> Persisting PATH updates...' -ForegroundColor Cyan
-    Update-Path
+# Visual Studio Code
+Write-Host "Visual Studio Code"
+Write-Host "----------------------------------------"
+winget install Microsoft.VisualStudioCode --exact --no-upgrade --silent
+git config --global core.editor "code --wait"
+Write-Host "DONE: VS Code has been installed and configured as git editor." -ForegroundColor Green
 
-    # Immediate validation (reload env for current session)
-    $env:Path = [Environment]::GetEnvironmentVariable('Path', 'User')
-    Write-Host '-> Verifying PHP version...' -ForegroundColor Cyan
-    php -v | Select-String '^PHP' | ForEach-Object {
-        Write-Host "  $_" -ForegroundColor Green
-    }
-
-    Write-Host 'PHP provisioning complete.' -ForegroundColor Green
-}
-
-function Ensure-WSL2 {
-    if (-not (wsl.exe --status 2>$null)) {
-        Write-Host '-> Enabling WSL2 feature...' -NoNewline
-        Enable-WindowsOptionalFeature -Online -FeatureName 'Microsoft-Windows-Subsystem-Linux' -NoRestart | Out-Null
-        Enable-WindowsOptionalFeature -Online -FeatureName 'VirtualMachinePlatform' -NoRestart | Out-Null
-        Write-Host ' Done' -ForegroundColor Green
-    }
-}
-
-function Install-DockerDesktop {
-    Ensure-WSL2
-    Install-WingetApp -Id $Applications.Docker -Name 'Docker Desktop'
-}
-
-function Configure-VSCodeGitEditor {
-    Write-Host '-> Setting VS Code as Git editor...' -NoNewline
-    git config --global core.editor 'code --wait'
-    Write-Host ' Done' -ForegroundColor Green
-}
-
-function Pull-DeepSeekCoderV2 {
-    param(
-        [string]$ModelId,
-        [string]$DisplayName
-    )
-    Write-Section "Provisioning Ollama Model: $DisplayName"
-    
-    # Verify ollama command is available
-    try {
-        $null = Get-Command ollama -ErrorAction Stop
-    }
-    catch {
-        Write-Host "ERROR: ollama command not found. Please restart PowerShell and try again." -ForegroundColor Red
-        return $false
-    }    # Check if model is already present
-    try {
-        $existingModels = & ollama list *>$null
-        if ($existingModels | Select-String -Pattern "^$ModelId(\s|$)") {
-            Write-Host "[SKIP] $DisplayName already pulled" -ForegroundColor Yellow
-            return $true
-        }
-    }
-    catch {
-        # If ollama list fails, continue with pull attempt
-    }    Write-Host "Pulling $DisplayName ($ModelId)..."
-    
-    try {
-        # Let ollama show progress directly without capturing output
-        & ollama pull $ModelId
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "SUCCESS: $DisplayName pulled successfully" -ForegroundColor Green
-            return $true
-        }
-        else {
-            Write-Host "ERROR: Failed to pull $DisplayName (Exit code: $LASTEXITCODE)" -ForegroundColor Red
-            return $false
-        }
-    }
-    catch {
-        Write-Host "ERROR: Error pulling $DisplayName" -ForegroundColor Red
-        Write-Host "Details: $($_.Exception.Message)" -ForegroundColor DarkYellow
-        return $false
-    }
-}
-
-#------------------------------
-# Main Execution
-#------------------------------
-Write-Host '=== Windows Dev Setup ===' -ForegroundColor Cyan
-
-Write-Section 'Core Utilities'
-Install-WingetApp -Id $Applications.PowerToys -Name 'PowerToys'
-
-Write-Section 'Windows Explorer'
-Set-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name Hidden -Value 1
-Set-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name HideFileExt -Value 0
-Write-Host 'Explorer configured' -ForegroundColor Green
-
-Write-Section 'Git'
-Install-WingetApp -Id $Applications.Git -Name 'Git'
-if ($?) { git config --global user.name  $GitUserName; git config --global user.email $GitUserEmail; Write-Host 'Git user configured' -ForegroundColor Green }
-
-Write-Section 'Terminal & Shell'
-Install-WingetApp -Id $Applications.WindowsTerminal -Name 'Windows Terminal'
-Install-WingetApp -Id $Applications.PowerShell -Name 'PowerShell 7'
-
-Write-Section 'SDKs & Runtimes'
-Install-WingetApp -Id $Applications.DotNetSDK -Name '.NET SDK 9'
-Install-WingetApp -Id $Applications.Python  -Name 'Python 3.12'
-if ($?) { Install-PythonPackages }
-Install-WingetApp -Id $Applications.NodeJS  -Name 'Node.js LTS'
-if ($?) { Install-NodePackages }
-
-Write-Section 'PHP'
-Install-Php
-
-Write-Section 'Docker Desktop'
-Install-DockerDesktop
-
-Write-Section 'Visual Studio Code'
-Install-WingetApp -Id $Applications.VSCode -Name 'Visual Studio Code'
-
-Write-Section 'Ollama'
-Install-WingetApp -Id $Applications.Ollama -Name 'Ollama'
-
-if ($InstallDeepSeekCoderV2) {
-    Pull-DeepSeekCoderV2 -ModelId 'deepseek-coder-v2:16b' -DisplayName 'DeepSeek-Coder-V2 (16B parameters)'
-}
-
-Configure-VSCodeGitEditor
-
-Write-Host "`nSetup complete. Log: $LogFile" -ForegroundColor Green
-Stop-Transcript
+Write-Host "`nSetup complete!" -ForegroundColor Green
