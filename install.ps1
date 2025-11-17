@@ -50,10 +50,10 @@ winget install Microsoft.PowerShell --exact --no-upgrade --silent
 Write-Host "DONE: PowerShell 7." -ForegroundColor Green
 
 # .NET SDK 9
-Write-Host ".NET SDK 9"
+Write-Host ".NET SDK 10"
 Write-Host "----------------------------------------"
-winget install Microsoft.DotNet.SDK.9 --exact --no-upgrade --silent
-Write-Host "DONE: .NET SDK 9." -ForegroundColor Green
+winget install Microsoft.DotNet.SDK.10 --exact --no-upgrade --silent
+Write-Host "DONE: .NET SDK 10." -ForegroundColor Green
 
 # Python 3.12
 Write-Host "Python 3.12"
