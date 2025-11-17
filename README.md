@@ -8,7 +8,7 @@ A PowerShell script that installs essential development tools for Windows.
 - Git
 - Windows Terminal
 - PowerShell 7
-- .NET SDK 9
+- .NET SDK 10
 - Python 3.12
 - Node.js
 - PHP 8.4
